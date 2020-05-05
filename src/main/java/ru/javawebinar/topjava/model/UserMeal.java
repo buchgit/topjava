@@ -1,5 +1,8 @@
 package ru.javawebinar.topjava.model;
 
+import sun.util.resources.LocaleData;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public class UserMeal {
@@ -17,6 +20,10 @@ public class UserMeal {
 
     public LocalDateTime getDateTime() {
         return dateTime;
+    }
+
+    public LocalDate getLocalDate() {
+        return this.getDateTime().toLocalDate();
     }
 
     public String getDescription() {
