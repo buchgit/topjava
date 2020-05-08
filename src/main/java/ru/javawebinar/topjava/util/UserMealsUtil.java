@@ -1,10 +1,8 @@
 package ru.javawebinar.topjava.util;
 
-import com.sun.org.apache.xpath.internal.objects.XNull;
 import ru.javawebinar.topjava.model.UserMeal;
+import ru.javawebinar.topjava.model.UserMealPackaged;
 import ru.javawebinar.topjava.model.UserMealWithExcess;
-
-import java.net.URLStreamHandler;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -12,10 +10,6 @@ import java.time.Month;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collector;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.*;
 
 public class UserMealsUtil {
     public static void main(String[] args) {
@@ -29,12 +23,10 @@ public class UserMealsUtil {
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
         );
-
+        System.out.println("-------------------------filteredByCycles-----------------------------------------------------");
         List<UserMealWithExcess> mealsTo = filteredByCycles(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000);
         mealsTo.forEach(System.out::println);
-
-        System.out.println("------------------------------------------------------------------------------");
-
+        System.out.println("-------------------------filteredByStreams-----------------------------------------------------");
         System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));      //раскомментить
     }
 
@@ -67,62 +59,99 @@ public class UserMealsUtil {
     public static Comparator<UserMeal> userMealComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
 
     public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
-        SortedMap<LocalDate, Integer> map = new TreeMap<>();
-
-        BinaryOperator<Integer> summer = (i, j) -> i + j;
-
-        Consumer<UserMeal> toMapper = (userMeal) -> {
-            if (map.containsKey(userMeal.getLocalDate()))
-                map.put(userMeal.getLocalDate(), summer.apply(map.get(userMeal.getLocalDate()), userMeal.getCalories()));
-            else {
-                map.put(userMeal.getLocalDate(), userMeal.getCalories());
-            }
+        Function<UserMeal, UserMealPackaged> packaging = (userMeal) -> {
+            return new UserMealPackaged(userMeal, startTime, endTime);
         };
 
-        BiPredicate<LocalDate, Integer> moreThan = (localDate, caloriesPD) -> map.get(localDate).compareTo(caloriesPD) > 0;
+        //accumulator for collector
+        class CustomAcc {
+            private List<UserMealWithExcess> list = new ArrayList();
+            private SortedMap<LocalDate, Integer> map = new TreeMap<>();
 
-        Function<UserMeal, UserMealWithExcess> function1 = (userMeal) -> {
-            return new UserMealWithExcess(userMeal.getDateTime(), userMeal.getDescription(), userMeal.getCalories(), moreThan.test(userMeal.getLocalDate(), caloriesPerDay));
-        };
+            public CustomAcc() {
+            }
 
-         class finishCollector implements Collector<UserMealWithExcess, List<UserMealWithExcess>,List<UserMealWithExcess>> {
+            public void add(UserMealPackaged userMealPackaged) {
+                UserMealWithExcess u = new UserMealWithExcess(
+                        userMealPackaged.getUserMeal().getDateTime(),
+                        userMealPackaged.getUserMeal().getDescription(),
+                        userMealPackaged.getUserMeal().getCalories(),
+                        false
+                );
+                if (TimeUtil.isBetweenHalfOpen(userMealPackaged.getUserMeal().getLocalTime(), userMealPackaged.getStartTime(), userMealPackaged.getEndTime())) {
+                    list.add(u);
+                }
+                BinaryOperator<Integer> summer = (i, j) -> i + j;
+                if (map.containsKey(userMealPackaged.getUserMeal().getLocalDate()))
+                    map.put(userMealPackaged.getUserMeal().getLocalDate(), summer.apply(map.get(userMealPackaged.getUserMeal().getLocalDate()), u.getCalories()));
+                else {
+                    map.put(userMealPackaged.getUserMeal().getLocalDate(), u.getCalories());
+                }
+            }
+
+            public void addAll(CustomAcc customAcc) {
+                BinaryOperator<Integer> summer = (i, j) -> i + j;
+                for (UserMealWithExcess u : customAcc.getList()) {
+                    list.add(u);
+                }
+                for (LocalDate key : customAcc.getMap().keySet()) {
+                    if (map.containsKey(key))
+                        map.put(key, summer.apply(map.get(key), customAcc.getMap().get(key)));
+                    else {
+                        map.put(key, customAcc.getMap().get(key));
+                    }
+                }
+            }
+
+            public List<UserMealWithExcess> getList() {
+                return list;
+            }
+
+            public Map<LocalDate, Integer> getMap() {
+                return map;
+            }
+
+            public void setExcessFields(Integer calories) {
+                BiPredicate<LocalDate, Integer> moreThan = (localDate, caloriesPD) -> map.get(localDate).compareTo(caloriesPD) > 0;
+                for (UserMealWithExcess u : list) {
+                    u.setExcess(moreThan.test(u.getLocalDate(), calories));
+                }
+            }
+        }
+        //collector
+        class finishCollector implements Collector<UserMealPackaged, CustomAcc, List<UserMealWithExcess>> {
+
             @Override
-            public Supplier<List<UserMealWithExcess>> supplier() {
-                return ArrayList::new;
+            public Supplier<CustomAcc> supplier() {
+                return CustomAcc::new;
             }
 
             @Override
-            public BiConsumer<List<UserMealWithExcess>, UserMealWithExcess> accumulator() {
-                return List::add;
+            public BiConsumer<CustomAcc, UserMealPackaged> accumulator() {
+                return CustomAcc::add;
             }
 
             @Override
-            public BinaryOperator<List<UserMealWithExcess>> combiner() {
+            public BinaryOperator<CustomAcc> combiner() {
                 return (acc, ps) -> {
                     acc.addAll(ps);
                     return acc;
                 };
             }
+
             @Override
-            public Function<List<UserMealWithExcess>, List<UserMealWithExcess>> finisher() {
-                return (userListIn)->{
-                    List<UserMealWithExcess> tempList =  new ArrayList<>();
-                    for (UserMealWithExcess u:userListIn){
-                        u.setExcess(moreThan.test(u.getDateTime().toLocalDate(),caloriesPerDay));
-                        tempList.add(u);
-                    }
-                    return tempList;
+            public Function<CustomAcc, List<UserMealWithExcess>> finisher() {
+                return (userListIn) -> {
+                    userListIn.setExcessFields(caloriesPerDay);
+                    return userListIn.getList();
                 };
             }
+
             @Override
             public Set<java.util.stream.Collector.Characteristics> characteristics() {
                 return Collections.unmodifiableSet(EnumSet.of(Collector.Characteristics.UNORDERED));
             }
         }
-        return meals.stream()
-                .peek(toMapper)
-                .filter(meal -> TimeUtil.isBetweenHalfOpen(meal.getDateTime().toLocalTime(), startTime, endTime))
-                .map(function1)
-                .collect(new finishCollector());
+        return meals.stream().map(packaging).collect(new finishCollector());
     }
 }

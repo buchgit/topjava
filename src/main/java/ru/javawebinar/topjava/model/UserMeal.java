@@ -1,9 +1,8 @@
 package ru.javawebinar.topjava.model;
 
-import sun.util.resources.LocaleData;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 public class UserMeal {
     private final LocalDateTime dateTime;
@@ -23,8 +22,10 @@ public class UserMeal {
     }
 
     public LocalDate getLocalDate() {
-        return this.getDateTime().toLocalDate();
+        return getDateTime().toLocalDate();
     }
+
+    public LocalTime getLocalTime(){return this.getDateTime().toLocalTime();}
 
     public String getDescription() {
         return description;
