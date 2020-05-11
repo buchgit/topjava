@@ -87,7 +87,7 @@ public class UserMealsUtil {
                         LocalDate key;
                         //проверяем, есть ли запись с таким ключом
                         if (listMap.containsKey(day)) {
-                            //если на текущем элементе есть превышение по норме каллорий, то заполняется только лист true
+                            //если на текущем элементе есть превышение по норме калорий, то заполняется только лист true
                             if (!aboveTheNorm.test(day, caloriesPerDay)) {
                                 listMap.get(day).get(0).add(new UserMealWithExcess(userMeal, false));
                             }
