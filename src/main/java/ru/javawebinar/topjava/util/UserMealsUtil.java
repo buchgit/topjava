@@ -1,8 +1,8 @@
 package ru.javawebinar.topjava.util;
 
 import ru.javawebinar.topjava.model.UserMeal;
-import ru.javawebinar.topjava.model.UserMealPackaged;
 import ru.javawebinar.topjava.model.UserMealWithExcess;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -10,6 +10,7 @@ import java.time.Month;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 public class UserMealsUtil {
     public static void main(String[] args) {
@@ -30,7 +31,7 @@ public class UserMealsUtil {
         System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));      //раскомментить
     }
 
-
+    //в 2 прохода
     public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
         Collections.sort(meals, userMealComparator);
         SortedMap<Integer, Integer> map = new TreeMap<>();
@@ -39,7 +40,7 @@ public class UserMealsUtil {
         int sum = 0;
         for (UserMeal userMeal : meals) {
             if (userMeal == null) continue;
-            Integer key;
+            int key;
             if (map.containsKey(key = userMeal.getDateTime().getDayOfYear()))
                 map.put(key, sum += userMeal.getCalories());
             else {
@@ -58,93 +59,77 @@ public class UserMealsUtil {
 
     public static Comparator<UserMeal> userMealComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
 
+    //в 1 проход
     public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
-        Function<UserMeal, UserMealPackaged> packaging = (userMeal) -> {
-            return new UserMealPackaged(userMeal, startTime, endTime);
-        };
 
-        //accumulator for collector
-        class CustomAcc {
-            private List<UserMealWithExcess> list = new ArrayList();
-            private SortedMap<LocalDate, Integer> map = new TreeMap<>();
+        class finishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
 
-            public CustomAcc() {
+            private Map<LocalDate, Integer> map = new TreeMap<>();
+
+            BiPredicate<LocalDate, Integer> aboveTheNorm = (localDate, calories) -> map.get(localDate).compareTo(calories) > 0;
+
+            @Override
+            public Supplier<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>> supplier() {
+                return TreeMap::new;
             }
 
-            public void add(UserMealPackaged userMealPackaged) {
-                UserMealWithExcess u = new UserMealWithExcess(
-                        userMealPackaged.getUserMeal().getDateTime(),
-                        userMealPackaged.getUserMeal().getDescription(),
-                        userMealPackaged.getUserMeal().getCalories(),
-                        false
-                );
-                if (TimeUtil.isBetweenHalfOpen(userMealPackaged.getUserMeal().getLocalTime(), userMealPackaged.getStartTime(), userMealPackaged.getEndTime())) {
-                    list.add(u);
-                }
-                BinaryOperator<Integer> summer = (i, j) -> i + j;
-                if (map.containsKey(userMealPackaged.getUserMeal().getLocalDate()))
-                    map.put(userMealPackaged.getUserMeal().getLocalDate(), summer.apply(map.get(userMealPackaged.getUserMeal().getLocalDate()), u.getCalories()));
-                else {
-                    map.put(userMealPackaged.getUserMeal().getLocalDate(), u.getCalories());
-                }
-            }
-
-            public void addAll(CustomAcc customAcc) {
-                BinaryOperator<Integer> summer = (i, j) -> i + j;
-                for (UserMealWithExcess u : customAcc.getList()) {
-                    list.add(u);
-                }
-                for (LocalDate key : customAcc.getMap().keySet()) {
-                    if (map.containsKey(key))
-                        map.put(key, summer.apply(map.get(key), customAcc.getMap().get(key)));
-                    else {
-                        map.put(key, customAcc.getMap().get(key));
+            @Override
+            public BiConsumer<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, UserMeal> accumulator() {
+                return (listMap, userMeal) -> {
+                    //суммируем по дням
+                    map.merge(userMeal.getLocalDate(), userMeal.getCalories(), Integer::sum);
+                    LocalDate day = userMeal.getLocalDate();
+                    if (aboveTheNorm.test(day, caloriesPerDay)) {
+                        listMap.get(day).get(0).clear();
                     }
-                }
-            }
-
-            public List<UserMealWithExcess> getList() {
-                return list;
-            }
-
-            public Map<LocalDate, Integer> getMap() {
-                return map;
-            }
-
-            public void setExcessFields(Integer calories) {
-                BiPredicate<LocalDate, Integer> moreThan = (localDate, caloriesPD) -> map.get(localDate).compareTo(caloriesPD) > 0;
-                for (UserMealWithExcess u : list) {
-                    u.setExcess(moreThan.test(u.getLocalDate(), calories));
-                }
-            }
-        }
-        //collector
-        class finishCollector implements Collector<UserMealPackaged, CustomAcc, List<UserMealWithExcess>> {
-
-            @Override
-            public Supplier<CustomAcc> supplier() {
-                return CustomAcc::new;
-            }
-
-            @Override
-            public BiConsumer<CustomAcc, UserMealPackaged> accumulator() {
-                return CustomAcc::add;
-            }
-
-            @Override
-            public BinaryOperator<CustomAcc> combiner() {
-                return (acc, ps) -> {
-                    acc.addAll(ps);
-                    return acc;
+                    //добавляем отфильтрованные элементы в два листа: с excess = true и excess = false
+                    if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(), startTime, endTime)) {
+                        LocalDate key;
+                        //проверяем, есть ли запись с таким ключом
+                        if (listMap.containsKey(day)) {
+                            //если на текущем элементе есть превышение по норме каллорий, то заполняется только лист true
+                            if (!aboveTheNorm.test(day, caloriesPerDay)) {
+                                listMap.get(day).get(0).add(new UserMealWithExcess(userMeal, false));
+                            }
+                            listMap.get(day).get(1).add(new UserMealWithExcess(userMeal, true));
+                        } else {//записи с ключом нет,создаем новый элемент Map
+                            ArrayList tempList = new ArrayList();
+                            ArrayList<UserMealWithExcess> listWithTrue = new ArrayList<>();
+                            ArrayList<UserMealWithExcess> listWithFalse = new ArrayList<>();
+                            if (!aboveTheNorm.test(day, caloriesPerDay)) {
+                                listWithFalse.add(new UserMealWithExcess(userMeal, false));
+                            }
+                            listWithTrue.add(new UserMealWithExcess(userMeal, true));
+                            tempList.add(0, listWithFalse);
+                            tempList.add(1, listWithTrue);
+                            listMap.put(day, tempList);
+                        }
+                    }
                 };
             }
 
             @Override
-            public Function<CustomAcc, List<UserMealWithExcess>> finisher() {
-                return (userListIn) -> {
-                    userListIn.setExcessFields(caloriesPerDay);
-                    return userListIn.getList();
-                };
+            public BinaryOperator<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>> combiner() {
+                return (acc, ps) -> ps.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue(),
+                        (list1, list2) -> {
+                            list1.get(0).addAll(list2.get(0));
+                            list1.get(1).addAll(list2.get(1));
+                            return list1;
+                        }));
+            }
+
+            @Override
+            public Function<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> finisher() {
+                return map -> map
+                        .values()
+                        .stream()
+                        .map(list -> {
+                            if (list.get(0).size() > 0) return list.get(0);
+                            else return list.get(1);
+                        })
+                        .flatMap(list -> list.stream())
+                        .collect(Collectors.toList())
+                        ;
             }
 
             @Override
@@ -152,6 +137,6 @@ public class UserMealsUtil {
                 return Collections.unmodifiableSet(EnumSet.of(Collector.Characteristics.UNORDERED));
             }
         }
-        return meals.stream().map(packaging).collect(new finishCollector());
+        return meals.stream().collect(new finishCollector());
     }
 }
