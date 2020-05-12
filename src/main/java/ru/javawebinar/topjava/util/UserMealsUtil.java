@@ -62,7 +62,7 @@ public class UserMealsUtil {
     //в 1 проход
     public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
-        class finishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
+        class FinishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
 
             private Map<LocalDate, Integer> map = new TreeMap<>();
 
@@ -79,12 +79,12 @@ public class UserMealsUtil {
                     //суммируем по дням
                     map.merge(userMeal.getLocalDate(), userMeal.getCalories(), Integer::sum);
                     LocalDate day = userMeal.getLocalDate();
+                    //eсли превышение дневной нормы, очищаем один из 2-х листов
                     if (aboveTheNorm.test(day, caloriesPerDay)) {
                         listMap.get(day).get(0).clear();
                     }
                     //добавляем отфильтрованные элементы в два листа: с excess = true и excess = false
                     if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(), startTime, endTime)) {
-                        LocalDate key;
                         //проверяем, есть ли запись с таким ключом
                         if (listMap.containsKey(day)) {
                             //если на текущем элементе есть превышение по норме калорий, то заполняется только лист true
@@ -137,6 +137,6 @@ public class UserMealsUtil {
                 return Collections.unmodifiableSet(EnumSet.of(Collector.Characteristics.UNORDERED));
             }
         }
-        return meals.stream().collect(new finishCollector());
+        return meals.stream().collect(new FinishCollector());
     }
 }
