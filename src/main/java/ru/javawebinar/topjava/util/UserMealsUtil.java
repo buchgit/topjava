@@ -8,9 +8,11 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Month;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.*;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class UserMealsUtil {
     public static void main(String[] args) {
@@ -31,7 +33,7 @@ public class UserMealsUtil {
         System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));      //раскомментить
     }
 
-    //в 2 прохода
+    //в 2 прохода, просто неинтересно
     public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
         Collections.sort(meals, userMealComparator);
         SortedMap<Integer, Integer> map = new TreeMap<>();
@@ -58,9 +60,91 @@ public class UserMealsUtil {
     }
 
     public static Comparator<UserMeal> userMealComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
+    public static Comparator<UserMealWithExcess> userMealWithExcessComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
 
-    //в 1 проход
+    //в 1 проход, вариант 1
     public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+
+        class FinishCollector implements Collector<UserMeal, Map<List<UserMeal>, Boolean>, List<UserMealWithExcess>> {
+
+            boolean excess;
+            final Integer[] calories = {0};
+            final Integer[] count = {meals.size()};
+            final LocalDate[] previousDate = {null};
+            ArrayList<UserMeal> tempList = new ArrayList<>();
+
+            @Override
+            public Supplier<Map<List<UserMeal>, Boolean>> supplier() {
+                return HashMap::new;
+            }
+
+            @Override
+            public BiConsumer<Map<List<UserMeal>, Boolean>, UserMeal> accumulator() {
+                return (acc, userMeal) -> {
+                    count[0]-=1;
+                    if (!userMeal.getLocalDate().equals(previousDate[0]) && previousDate[0] != null) {//переход даты
+                        //формируем итоговый пакет на дату
+                        excess = (calories[0] > caloriesPerDay);
+                        ArrayList<UserMeal>key = new ArrayList<>();
+                        key.addAll(tempList);
+                        acc.put(key, excess);
+                        //для новой даты и первого элемента
+                        tempList.clear();
+                        if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(), startTime, endTime)) {
+                            tempList.add(userMeal);
+                        }
+                        calories[0] = userMeal.getCalories();
+                        previousDate[0] = userMeal.getLocalDate();
+                    } else {//дата не изменилась
+                        previousDate[0] = userMeal.getLocalDate();
+                        if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(), startTime, endTime)) {
+                            tempList.add(userMeal);
+                        }
+                        calories[0] += userMeal.getCalories();
+                    }
+                    //для последнего элемента стрима
+                    if ((count[0]==0)){
+                        excess = (calories[0] > caloriesPerDay);
+                        ArrayList<UserMeal>key = new ArrayList<>();
+                        key.addAll(tempList);
+                        acc.put(key, excess);
+                    }
+                };
+            }
+
+            //не используется
+            @Override
+            public BinaryOperator<Map<List<UserMeal>, Boolean>> combiner() {
+                return (map, map1) -> Stream.concat(
+                        map.entrySet().stream(),
+                        map1.entrySet().stream())
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            }
+
+            @Override
+            public Function<Map<List<UserMeal>, Boolean>, List<UserMealWithExcess>> finisher() {
+                return maps -> maps.entrySet().stream()
+                        .map(e -> e.getKey().stream().map(userMeal -> {
+                            return new UserMealWithExcess(userMeal, e.getValue());
+                        }).collect(Collectors.toList()))
+                        .flatMap(list -> list.stream())
+                        .sorted(userMealWithExcessComparator)
+                        .collect(Collectors.toList())
+                        ;
+            }
+
+            @Override
+            public Set<java.util.stream.Collector.Characteristics> characteristics() {
+                return Collections.unmodifiableSet(EnumSet.of(Collector.Characteristics.UNORDERED));
+            }
+        } //class
+        return meals.stream()
+                .sorted(userMealComparator)
+                .collect(new FinishCollector());
+    }
+
+    //в 1 проход, вариант 2
+    public static List<UserMealWithExcess> filteredByStreams2(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
         class FinishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
 
