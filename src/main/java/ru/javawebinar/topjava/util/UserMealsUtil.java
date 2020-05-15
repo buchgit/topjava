@@ -33,36 +33,81 @@ public class UserMealsUtil {
         System.out.println(filteredByStreams(meals, LocalTime.of(7, 0), LocalTime.of(12, 0), 2000));      //раскомментить
     }
 
-    //в 2 прохода, просто неинтересно
-    public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
-        Collections.sort(meals, userMealComparator);
-        SortedMap<Integer, Integer> map = new TreeMap<>();
-        List<UserMealWithExcess> list = new ArrayList<>();
-
-        int sum = 0;
-        for (UserMeal userMeal : meals) {
-            if (userMeal == null) continue;
-            int key;
-            if (map.containsKey(key = userMeal.getDateTime().getDayOfYear()))
-                map.put(key, sum += userMeal.getCalories());
-            else {
-                sum = userMeal.getCalories();
-                map.put(userMeal.getDateTime().getDayOfYear(), sum);
-            }
-        }
-        for (UserMeal userMeal : meals) {
-            if (userMeal != null) {
-                if (!TimeUtil.isBetweenHalfOpen(userMeal.getDateTime().toLocalTime(), startTime, endTime)) continue;
-            } else continue;
-            list.add(new UserMealWithExcess(userMeal.getDateTime(), userMeal.getDescription(), userMeal.getCalories(), map.get(userMeal.getDateTime().getDayOfYear()) > caloriesPerDay));
-        }
-        return list;
-    }
-
     public static Comparator<UserMeal> userMealComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
     public static Comparator<UserMealWithExcess> userMealWithExcessComparator = (o1, o2) -> o1.getDateTime().compareTo(o2.getDateTime());
 
-    //в 1 проход, вариант 1
+    //цикл, вариант 1, в 1 проход
+    public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+
+        Collections.sort(meals, userMealComparator);
+        SortedMap<LocalDate,Integer>summing = new TreeMap<>();
+        List<UserMealWithExcess>trueList = new ArrayList<>();
+        List<UserMealWithExcess>falseList = new ArrayList<>();
+        List<UserMealWithExcess>resultList = new ArrayList<>();
+        LocalDate previousDate = null;
+        int count = meals.size();
+
+        for (UserMeal userMeal : meals) {
+            count-=1;
+            if (!summing.containsKey(userMeal.getLocalDate())&&count!=meals.size()-1){//переход даты
+                //записываем в результирующий лист
+                boolean excess = summing.get(previousDate)>caloriesPerDay;
+                if (excess){
+                    resultList.addAll(trueList);
+                }
+                else{
+                    resultList.addAll(falseList);
+                }
+                //для новой даты
+                previousDate = userMeal.getLocalDate();
+                trueList.clear();
+                falseList.clear();
+                //для первого элемента
+                summing.merge(userMeal.getLocalDate(),userMeal.getCalories(),Integer::sum);
+                if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(),startTime,endTime)){
+                    trueList.add(new UserMealWithExcess(userMeal,true));
+                    falseList.add(new UserMealWithExcess(userMeal,false));
+                }
+            }else {//если дата прежняя или первый элемент списка
+                previousDate = userMeal.getLocalDate();
+                summing.merge(userMeal.getLocalDate(),userMeal.getCalories(),Integer::sum);
+                if (TimeUtil.isBetweenHalfOpen(userMeal.getLocalTime(),startTime,endTime)){
+                    trueList.add(new UserMealWithExcess(userMeal,true));
+                    falseList.add(new UserMealWithExcess(userMeal,false));
+                }
+            }
+            //для последнего элемента списка
+            if (count==0){
+                boolean excess = summing.get(userMeal.getLocalDate())>caloriesPerDay;
+                if (excess){
+                    resultList.addAll(trueList);
+                }
+                else{
+                    resultList.addAll(falseList);
+                }
+            }
+        }
+        return resultList;
+    }
+    //цикл, вариант 2, в 2 прохода
+    public static List<UserMealWithExcess> filteredByCycles2(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+        Collections.sort(meals, userMealComparator);
+        SortedMap<LocalDate, Integer> map = new TreeMap<>();
+        List<UserMealWithExcess> list = new ArrayList<>();
+
+        for (UserMeal userMeal : meals) {
+            map.merge(userMeal.getLocalDate(), userMeal.getCalories(), Integer::sum);
+        }
+
+        for (UserMeal userMeal : meals) {
+            if (userMeal != null) {
+                if (TimeUtil.isBetweenHalfOpen(userMeal.getDateTime().toLocalTime(), startTime, endTime))
+                    list.add(new UserMealWithExcess(userMeal,map.get(userMeal.getLocalDate())>caloriesPerDay));
+            }
+        }
+        return list;
+    }
+    //стрим, вариант 1,в 1 проход
     public static List<UserMealWithExcess> filteredByStreams(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
         class FinishCollector implements Collector<UserMeal, Map<List<UserMeal>, Boolean>, List<UserMealWithExcess>> {
@@ -142,8 +187,7 @@ public class UserMealsUtil {
                 .sorted(userMealComparator)
                 .collect(new FinishCollector());
     }
-
-    //в 1 проход, вариант 2
+    //стрим, вариант 2, в 1 проход
     public static List<UserMealWithExcess> filteredByStreams2(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
         class FinishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
