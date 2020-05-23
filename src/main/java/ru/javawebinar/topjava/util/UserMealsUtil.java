@@ -40,7 +40,7 @@ public class UserMealsUtil {
     public static List<UserMealWithExcess> filteredByCycles(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
 
         Collections.sort(meals, userMealComparator);
-        SortedMap<LocalDate,Integer>summing = new TreeMap<>();
+        Map<LocalDate,Integer>summing = new HashMap<>();
         List<UserMealWithExcess>trueList = new ArrayList<>();
         List<UserMealWithExcess>falseList = new ArrayList<>();
         List<UserMealWithExcess>resultList = new ArrayList<>();
@@ -192,13 +192,13 @@ public class UserMealsUtil {
 
         class FinishCollector implements Collector<UserMeal, Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>, List<UserMealWithExcess>> {
 
-            private Map<LocalDate, Integer> map = new TreeMap<>();
+            private Map<LocalDate, Integer> map = new HashMap<>();
 
             BiPredicate<LocalDate, Integer> aboveTheNorm = (localDate, calories) -> map.get(localDate).compareTo(calories) > 0;
 
             @Override
             public Supplier<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>> supplier() {
-                return TreeMap::new;
+                return HashMap::new;
             }
 
             @Override
