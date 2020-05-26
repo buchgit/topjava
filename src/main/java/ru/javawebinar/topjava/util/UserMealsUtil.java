@@ -195,13 +195,13 @@ public class UserMealsUtil {
                         }
                         listMap.get(day).get(0).add(convertToUserMealWithExcess(userMeal, false));
                         listMap.get(day).get(1).add(convertToUserMealWithExcess(userMeal, true));
-                        if ((map.get(day).compareTo(caloriesPerDay) > 0)) {
-                            ArrayList tempList = new ArrayList();
-                            ArrayList<UserMealWithExcess> listWithFalse = new ArrayList<>(0);
-                            tempList.add(0, listWithFalse);
-                            tempList.add(1, listMap.get(day).get(1));
-                            listMap.put(day, tempList);
-                        }
+                    }
+                    if ((map.get(day).compareTo(caloriesPerDay) > 0)) {
+                        ArrayList tempList = new ArrayList();
+                        ArrayList<UserMealWithExcess> listWithFalse = new ArrayList<>(0);
+                        tempList.add(0, listWithFalse);
+                        tempList.add(1, listMap.get(day).get(1));
+                        listMap.put(day, tempList);
                     }
                 };
             }
