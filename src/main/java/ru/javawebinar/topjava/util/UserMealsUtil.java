@@ -15,10 +15,11 @@ public class UserMealsUtil {
         List<UserMeal> meals = Arrays.asList(
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
+                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 0, 0), "Еда на граничное значение", 100),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 10, 0), "Завтрак", 1000),
-                new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
+                //new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 13, 0), "Обед", 500),
                 new UserMeal(LocalDateTime.of(2020, Month.JANUARY, 31, 20, 0), "Ужин", 410)
         );
         System.out.println("-------------------------filteredByCycles-----------------------------------------------------");
@@ -39,7 +40,7 @@ public class UserMealsUtil {
 
         for (UserMeal userMeal : meals) {
             count -= 1;
-            if (!summing.containsKey(userMeal.getDate()) && count != meals.size() - 1) {//переход даты
+            if (!summing.containsKey(userMeal.getDate()) && count != meals.size() - 1) {
                 boolean excess = summing.get(previousDate) > caloriesPerDay;
                 if (excess) {
                     resultList.addAll(trueList);
@@ -51,18 +52,13 @@ public class UserMealsUtil {
                 trueList.clear();
                 falseList.clear();
 
-                summing.merge(userMeal.getDate(), userMeal.getCalories(), Integer::sum);
-                if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime)) {
-                    trueList.add(convertToUserMealWithExcess(userMeal, true));
-                    falseList.add(convertToUserMealWithExcess(userMeal, false));
-                }
             } else {
                 previousDate = userMeal.getDate();
-                summing.merge(userMeal.getDate(), userMeal.getCalories(), Integer::sum);
-                if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime)) {
-                    trueList.add(convertToUserMealWithExcess(userMeal, true));
-                    falseList.add(convertToUserMealWithExcess(userMeal, false));
-                }
+            }
+            summing.merge(userMeal.getDate(), userMeal.getCalories(), Integer::sum);
+            if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime)) {
+                trueList.add(convertToUserMealWithExcess(userMeal, true));
+                falseList.add(convertToUserMealWithExcess(userMeal, false));
             }
             if (count == 0) {
                 boolean excess = summing.get(userMeal.getDate()) > caloriesPerDay;
@@ -85,10 +81,8 @@ public class UserMealsUtil {
         }
         List<UserMealWithExcess> list = new ArrayList<>();
         for (UserMeal userMeal : meals) {
-            if (userMeal != null) {
-                if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime))
-                    list.add(convertToUserMealWithExcess(userMeal, map.get(userMeal.getDate()) > caloriesPerDay));
-            }
+            if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime))
+                list.add(convertToUserMealWithExcess(userMeal, map.get(userMeal.getDate()) > caloriesPerDay));
         }
         return list;
     }
@@ -100,7 +94,7 @@ public class UserMealsUtil {
             final Integer[] calories = {0};
             final Integer[] count = {meals.size()};
             final LocalDate[] previousDate = {null};
-            ArrayList<UserMeal> tempList = new ArrayList<>();
+            final List<UserMeal> tempList = new ArrayList<>();
 
             @Override
             public Supplier<Map<List<UserMeal>, Boolean>> supplier() {
@@ -113,8 +107,7 @@ public class UserMealsUtil {
                     count[0] -= 1;
                     if (!userMeal.getDate().equals(previousDate[0]) && previousDate[0] != null) {//переход даты
                         excess = (calories[0] > caloriesPerDay);
-                        ArrayList<UserMeal> key = new ArrayList<>();
-                        key.addAll(tempList);
+                        List<UserMeal> key = new ArrayList<>(tempList);
                         acc.put(key, excess);
                         tempList.clear();
                         if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime)) {
@@ -131,8 +124,7 @@ public class UserMealsUtil {
                     }
                     if ((count[0] == 0)) {
                         excess = (calories[0] > caloriesPerDay);
-                        ArrayList<UserMeal> key = new ArrayList<>();
-                        key.addAll(tempList);
+                        List<UserMeal> key = new ArrayList<>(tempList);
                         acc.put(key, excess);
                     }
                 };
@@ -152,7 +144,7 @@ public class UserMealsUtil {
                         .map(e -> e.getKey().stream().map(userMeal -> {
                             return convertToUserMealWithExcess(userMeal, e.getValue());
                         }).collect(Collectors.toList()))
-                        .flatMap(list -> list.stream())
+                        .flatMap(Collection::stream)
                         .collect(Collectors.toList())
                         ;
             }
@@ -161,8 +153,9 @@ public class UserMealsUtil {
             public Set<java.util.stream.Collector.Characteristics> characteristics() {
                 return Collections.unmodifiableSet(EnumSet.of(Collector.Characteristics.UNORDERED));
             }
-        } //class
+        }
         return meals.stream()
+                .sorted(Comparator.comparing(UserMeal::getDateTime))
                 .collect(new FinishCollector());
     }
 
@@ -186,7 +179,7 @@ public class UserMealsUtil {
 
                     if (TimeUtil.isBetweenHalfOpen(userMeal.getTime(), startTime, endTime)) {
                         if (!listMap.containsKey(day)) {
-                            ArrayList tempList = new ArrayList();
+                            ArrayList<ArrayList<UserMealWithExcess>> tempList = new ArrayList<ArrayList<UserMealWithExcess>>();
                             ArrayList<UserMealWithExcess> listWithTrue = new ArrayList<>();
                             ArrayList<UserMealWithExcess> listWithFalse = new ArrayList<>();
                             tempList.add(0, listWithFalse);
@@ -197,7 +190,7 @@ public class UserMealsUtil {
                         listMap.get(day).get(1).add(convertToUserMealWithExcess(userMeal, true));
                     }
                     if ((map.get(day).compareTo(caloriesPerDay) > 0)) {
-                        ArrayList tempList = new ArrayList();
+                        ArrayList<ArrayList<UserMealWithExcess>> tempList = new ArrayList<ArrayList<UserMealWithExcess>>();
                         ArrayList<UserMealWithExcess> listWithFalse = new ArrayList<>(0);
                         tempList.add(0, listWithFalse);
                         tempList.add(1, listMap.get(day).get(1));
@@ -208,7 +201,7 @@ public class UserMealsUtil {
 
             @Override
             public BinaryOperator<Map<LocalDate, ArrayList<ArrayList<UserMealWithExcess>>>> combiner() {
-                return (acc, ps) -> ps.entrySet().stream().collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue(),
+                return (acc, ps) -> ps.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
                         (list1, list2) -> {
                             list1.get(0).addAll(list2.get(0));
                             list1.get(1).addAll(list2.get(1));
@@ -224,7 +217,7 @@ public class UserMealsUtil {
                         .map(list -> {
                             return list.get(0).size() < list.get(1).size() ? list.get(1) : list.get(0);
                         })
-                        .flatMap(list -> list.stream())
+                        .flatMap(Collection::stream)
                         .collect(Collectors.toList())
                         ;
             }
@@ -235,6 +228,22 @@ public class UserMealsUtil {
             }
         }
         return meals.stream().collect(new FinishCollector());
+    }
+
+    //solved by a stream,in 2 pass
+    public static List<UserMealWithExcess> filteredByStreams3(List<UserMeal> meals, LocalTime startTime, LocalTime endTime, int caloriesPerDay) {
+        Map<LocalDate,Integer> map = meals.stream()
+                .collect(Collectors.groupingBy(
+                    UserMeal::getDate,
+                    Collectors.summingInt(UserMeal::getCalories)));
+
+        return meals.stream()
+                .filter(userMeal -> TimeUtil.isBetweenHalfOpen(userMeal.getTime(),startTime,endTime))
+                .map(userMeal -> {
+                    boolean excess = map.get(userMeal.getDate()) > caloriesPerDay;
+                    return convertToUserMealWithExcess(userMeal,excess);
+                })
+                .collect(Collectors.toList());
     }
 
     private static UserMealWithExcess convertToUserMealWithExcess(UserMeal userMeal, boolean excess) {
