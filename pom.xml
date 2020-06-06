@@ -38,6 +38,13 @@
     </build>
 
     <dependencies>
+
+        <dependency>
+            <groupId>javax.servlet</groupId>
+            <artifactId>jstl</artifactId>
+            <version>1.2</version>
+        </dependency>
+
         <!-- Logging with SLF4J & LogBack -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -46,20 +53,12 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j
+        <!-- https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j-->
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>jcl-over-slf4j</artifactId>
             <version>${slf4j.version}</version>
         </dependency>
--->
-        <!-- https://mvnrepository.com/artifact/org.slf4j/jcl-over-slf4j -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>jcl-over-slf4j</artifactId>
-            <version>1.7.25</version>
-        </dependency>
-
 
         <dependency>
             <groupId>ch.qos.logback</groupId>
