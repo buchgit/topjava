@@ -3,7 +3,9 @@
 
 <%@taglib uri="http://example.com/functions" prefix="f" %>
 
-<style><%@include file="/WEB-INF/css/style.css"%></style>
+<style>
+    <%@include file="/WEB-INF/css/style.css" %>
+</style>
 <html lang="ru">
 <head>
     <title>Meal</title>
@@ -40,7 +42,7 @@
             </c:when>
             <c:otherwise>
                 <tr style="color: #4CAF50">
-                    <td> <c:out value="${counter.count}"/></td>
+                    <td><c:out value="${counter.count}"/></td>
                     <td><c:out value="${meal.description}"/></td>
                     <td><c:out value="${f:formatLocalDateTime(meal.dateTime, 'dd.MM.yyyy hh:mm:ss')}"/></td>
                     <td><c:out value="${meal.calories}"/></td>

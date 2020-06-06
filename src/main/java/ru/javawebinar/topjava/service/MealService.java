@@ -13,7 +13,7 @@ public class MealService {
         this.repository = new MealRepository();
     }
 
-    public List<MealTo> getList(){
-        return MealsUtil.transformTo(repository.getList(),2000);
+    public List<MealTo> getList() {
+        return MealsUtil.transformTo(repository.getList(), 2000);
     }
 }

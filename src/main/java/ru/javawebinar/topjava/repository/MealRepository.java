@@ -12,7 +12,7 @@ public class MealRepository {
     private List<Meal> list = new ArrayList<>();
 
     public MealRepository() {
-         list = Arrays.asList(
+        list = Arrays.asList(
                 new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 10, 0), "Завтрак", 500),
                 new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 13, 0), "Обед", 1000),
                 new Meal(LocalDateTime.of(2020, Month.JANUARY, 30, 20, 0), "Ужин", 500),

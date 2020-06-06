@@ -25,7 +25,7 @@ public class MealServlet extends HttpServlet {
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         log.debug("method doGet");
         request.setAttribute("mealsList", service.getList());
-        request.getRequestDispatcher("meals.jsp").forward(request,response);
+        request.getRequestDispatcher("meals.jsp").forward(request, response);
     }
 
 
