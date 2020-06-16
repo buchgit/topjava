@@ -8,14 +8,14 @@ import ru.javawebinar.topjava.web.SecurityUtil;
 public class ProfileRestController extends AbstractUserController {
 
     public User get() {
-        return super.get(new SecurityUtil().getAuthUserId());
+        return super.get(SecurityUtil.authUserId());
     }
 
     public void delete() {
-        super.delete(new SecurityUtil().getAuthUserId());
+        super.delete(SecurityUtil.authUserId());
     }
 
     public void update(User user) {
-        super.update(user, new SecurityUtil().getAuthUserId());
+        super.update(user, SecurityUtil.authUserId());
     }
 }

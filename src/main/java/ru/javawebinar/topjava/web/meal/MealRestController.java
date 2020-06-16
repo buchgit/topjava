@@ -25,12 +25,12 @@ public class MealRestController {
     private MealService service;
 
     public List<Meal> getAll() {
-        return (List<Meal>) service.getAll(new SecurityUtil().getAuthUserId());
+        return (List<Meal>) service.getAll(SecurityUtil.authUserId());
     }
 
     public List<MealTo> getTos(String startDate, String endDate, String startTime, String endTime) {
-        LocalDateTime sd = null;
-        LocalDateTime ed = null;
+        LocalDateTime sd;
+        LocalDateTime ed;
         try {
             sd = LocalDateTime.parse(startDate);
         } catch (Exception e) {
@@ -41,8 +41,8 @@ public class MealRestController {
         } catch (Exception e) {
             ed = LocalDateTime.MAX;
         }
-        LocalTime st = null;
-        LocalTime et = null;
+        LocalTime st;
+        LocalTime et;
         try {
             st = LocalTime.parse(startTime);
         } catch (Exception e) {
@@ -56,32 +56,32 @@ public class MealRestController {
 
         if (sd == LocalDateTime.MIN && ed == LocalDateTime.MAX && st == LocalTime.MIN && et == LocalTime.MAX) {
             log.info("getAll");
-            return MealsUtil.getTos(service.getAll(new SecurityUtil().getAuthUserId()), MealsUtil.DEFAULT_CALORIES_PER_DAY);
+            return MealsUtil.getTos(service.getAll(SecurityUtil.authUserId()), MealsUtil.DEFAULT_CALORIES_PER_DAY);
         }
         log.info("getAllFiltered");
-        return MealsUtil.getFilteredTos(service.getAllFiltered(new SecurityUtil().getAuthUserId(), sd, ed, st, et), MealsUtil.DEFAULT_CALORIES_PER_DAY, st, et);
+        return MealsUtil.getFilteredTos(service.getAllFiltered(SecurityUtil.authUserId(), sd, ed, st, et), MealsUtil.DEFAULT_CALORIES_PER_DAY, st, et);
     }
 
     public Meal get(int id) {
         log.info("get {}", id);
-        return service.get(id, new SecurityUtil().getAuthUserId());
+        return service.get(id, SecurityUtil.authUserId());
     }
 
     public Meal create(Meal meal) {
         log.info("create {}", meal);
         checkNew(meal);
-        return service.create(meal, new SecurityUtil().getAuthUserId());
+        return service.create(meal, SecurityUtil.authUserId());
     }
 
     public void delete(int id) {
         log.info("delete {}", id);
-        service.delete(id, new SecurityUtil().getAuthUserId());
+        service.delete(id, SecurityUtil.authUserId());
     }
 
     public void update(Meal meal, int mealId) {
         log.info("update {} with id={}", meal, mealId);
         assureIdConsistent(meal, mealId);
-        service.update(meal, new SecurityUtil().getAuthUserId());
+        service.update(meal, SecurityUtil.authUserId());
     }
 
     public void printLogAboutService() {

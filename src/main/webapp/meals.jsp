@@ -49,10 +49,20 @@
             </tr>
         </c:forEach>
     </table>
+    <form method="get" action="meals">
+        <jsp:useBean id="dataTimeFilter" class="ru.javawebinar.topjava.to.DataTimeFilterTo"/>
+        <dl>
+            <dt>Start date:</dt>
+            <dd><input type="datetime-local" value="${dataTimeFilter.startDateTime}" name="startDate"></dd>
+            <dt>End date:</dt>
+            <dd><input type="datetime-local" value="${dataTimeFilter.endDateTime}" name="endDate"></dd>
+            <dt>Start time:</dt>
+            <dd><input type="time" value="${dataTimeFilter.startTime}" name="startTime"></dd>
+            <dt>End time:</dt>
+            <dd><input type="time" value="${dataTimeFilter.endTime}" name="endTime"></dd>
+        </dl>
+        <button type="submit">Submit</button>
+    </form>
 </section>
-<dl>
-    <dt>DateTime:</dt>
-    <dd><input type="datetime-local" value="${meal.dateTime}" name="dateTime" required></dd>
-</dl>
 </body>
 </html>

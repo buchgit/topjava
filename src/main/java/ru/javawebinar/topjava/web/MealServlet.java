@@ -5,7 +5,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import ru.javawebinar.topjava.model.Meal;
-import ru.javawebinar.topjava.util.exception.NotFoundException;
 import ru.javawebinar.topjava.web.meal.MealRestController;
 
 import javax.servlet.ServletConfig;
@@ -58,10 +57,13 @@ public class MealServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String action = request.getParameter("action");
-        int userId = Integer.parseInt(request.getParameter("userId"));
-        if (userId>0){
-            if (userId!=new SecurityUtil().getAuthUserId());
-            else throw new NotFoundException("user not found");
+        String userId = request.getParameter("userId");
+        int uId = 0;
+        if (userId!=null&&!userId.isEmpty()) {
+            uId = Integer.parseInt(userId);
+            if (uId != SecurityUtil.authUserId())
+                //throw new NotFoundException("user not found");
+                request.getRequestDispatcher("/").forward(request, response);
         }
         switch (action == null ? "all" : action) {
             case "delete":
