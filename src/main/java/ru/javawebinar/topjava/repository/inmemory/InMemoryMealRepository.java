@@ -7,14 +7,15 @@ import ru.javawebinar.topjava.model.Meal;
 import ru.javawebinar.topjava.repository.MealRepository;
 import ru.javawebinar.topjava.util.DateTimeUtil;
 import ru.javawebinar.topjava.util.MealsUtil;
-import ru.javawebinar.topjava.util.exception.NotFoundException;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Repository
@@ -58,24 +59,58 @@ public class InMemoryMealRepository implements MealRepository {
     }
 
     @Override
-    public List<Meal> getAll(int userId, LocalDateTime startDate, LocalDateTime endDate) {
+    public List<Meal> getAllFiltered(int userId, LocalDateTime startDate, LocalDateTime endDate, LocalTime startTime, LocalTime endTime) {
         log.info("getAll");
+        return filterByPredicate(userId,
+                meal -> (DateTimeUtil.isBetweenHalfOpen(meal.getDateTime(), startDate, endDate))
+                        &&
+                        (DateTimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime)
+                        ));
+    }
+
+    @Override
+    public List<Meal> getAll(int userId) {
+        return filterByPredicate(userId,meal -> true);
+    }
+
+    public List<Meal> filterByPredicate (int userId, Predicate<Meal> filter){
         return repository.values().stream()
                 .filter(meal -> meal.getUserId() == userId)
-                .filter(meal -> DateTimeUtil.isBetweenHalfOpen(meal.getDateTime(), startDate, endDate))
-                .sorted(Comparator.comparing(Meal::getDateTime, Comparator.reverseOrder()))
+                .filter(filter)
+                .sorted(Comparator.comparing(Meal::getDateTime).reversed())
                 .collect(Collectors.toList());
     }
 
     public Meal checkMeal(int mealId, int userId) {
         Meal meal = repository.get(mealId);
         if (meal == null) {
-            throw new NotFoundException("The meal is not found");
+            return null;
         }
         if (meal.getUserId() != userId) {
-            throw new NotFoundException("The user is not correct");
+            return null;
         }
         return meal;
     }
 }
+/*
+public static List<MealTo> getTos(Collection<Meal> meals, int caloriesPerDay) {
+        return filterByPredicate(meals, caloriesPerDay, meal -> true);
+    }
 
+    public static List<MealTo> getFilteredTos(Collection<Meal> meals, int caloriesPerDay, LocalTime startTime, LocalTime endTime) {
+        return filterByPredicate(meals, caloriesPerDay, meal -> DateTimeUtil.isBetweenHalfOpen(meal.getTime(), startTime, endTime));
+    }
+
+    public static List<MealTo> filterByPredicate(Collection<Meal> meals, int caloriesPerDay, Predicate<Meal> filter) {
+        Map<LocalDate, Integer> caloriesSumByDate = meals.stream()
+                .collect(
+                        Collectors.groupingBy(Meal::getDate, Collectors.summingInt(Meal::getCalories))
+//                      Collectors.toMap(Meal::getDate, Meal::getCalories, Integer::sum)
+                );
+
+        return meals.stream()
+                .filter(filter)
+                .map(meal -> createTo(meal, caloriesSumByDate.get(meal.getDate()) > caloriesPerDay))
+                .collect(Collectors.toList());
+    }
+ */

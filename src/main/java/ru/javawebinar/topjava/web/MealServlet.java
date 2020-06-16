@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 import ru.javawebinar.topjava.model.Meal;
-import ru.javawebinar.topjava.util.MealsUtil;
+import ru.javawebinar.topjava.util.exception.NotFoundException;
 import ru.javawebinar.topjava.web.meal.MealRestController;
 
 import javax.servlet.ServletConfig;
@@ -26,17 +26,13 @@ public class MealServlet extends HttpServlet {
     @Override
     public void init(ServletConfig config) throws ServletException {
         super.init(config);
-        try {
-            appCtx = new ClassPathXmlApplicationContext("spring/spring-app.xml");
-            mealRestController = appCtx.getBean(MealRestController.class);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        appCtx = new ClassPathXmlApplicationContext("spring/spring-app.xml");
+        mealRestController = appCtx.getBean(MealRestController.class);
+        mealRestController.printLogAboutService();
     }
 
     @Override
     public void destroy() {
-        super.destroy();
         appCtx.close();
     }
 
@@ -52,9 +48,9 @@ public class MealServlet extends HttpServlet {
 
         log.info(meal.isNew() ? "Create {}" : "Update {}", meal);
         if (meal.isNew()) {
-            mealRestController.create(meal, SecurityUtil.authUserId());
+            mealRestController.create(meal);
         } else {
-            mealRestController.update(meal, meal.getId(), SecurityUtil.authUserId());
+            mealRestController.update(meal, meal.getId());
         }
         response.sendRedirect("meals");
     }
@@ -62,39 +58,33 @@ public class MealServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String action = request.getParameter("action");
-
+        int userId = Integer.parseInt(request.getParameter("userId"));
+        if (userId>0){
+            if (userId!=new SecurityUtil().getAuthUserId());
+            else throw new NotFoundException("user not found");
+        }
         switch (action == null ? "all" : action) {
             case "delete":
                 int id = getId(request);
                 log.info("Delete {}", id);
-                mealRestController.delete(id, SecurityUtil.authUserId());
+                mealRestController.delete(id);
                 response.sendRedirect("meals");
                 break;
             case "create":
             case "update":
                 final Meal meal = "create".equals(action) ?
                         new Meal(LocalDateTime.now().truncatedTo(ChronoUnit.MINUTES), "", 1000) :
-                        mealRestController.get(getId(request), SecurityUtil.authUserId());
+                        mealRestController.get(getId(request));
                 request.setAttribute("meal", meal);
                 request.getRequestDispatcher("/mealForm.jsp").forward(request, response);
                 break;
             case "all":
             default:
                 log.info("getAll");
-                LocalDateTime startDate = null;
-                LocalDateTime endDate = null;
-                try {
-                    startDate = LocalDateTime.parse(request.getParameter("startTime"));
-                } catch (Exception e) {
-                    startDate = LocalDateTime.MIN;
-                }
-                try {
-                    endDate = LocalDateTime.parse(request.getParameter("endTime"));
-                } catch (Exception e) {
-                    endDate = LocalDateTime.MAX;
-                }
-                request.setAttribute("meals",
-                        MealsUtil.getTos(mealRestController.getAll(SecurityUtil.authUserId(), startDate, endDate), MealsUtil.DEFAULT_CALORIES_PER_DAY));
+                request.setAttribute("meals",mealRestController.getTos(request.getParameter("startDate"),
+                        request.getParameter("endDate"),
+                        request.getParameter("startTime"),
+                        request.getParameter("endTime")));
                 request.getRequestDispatcher("/meals.jsp").forward(request, response);
                 break;
         }

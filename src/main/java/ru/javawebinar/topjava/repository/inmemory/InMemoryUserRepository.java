@@ -3,14 +3,12 @@ package ru.javawebinar.topjava.repository.inmemory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
-import ru.javawebinar.topjava.model.AbstractNamedEntity;
 import ru.javawebinar.topjava.model.Role;
 import ru.javawebinar.topjava.model.User;
 import ru.javawebinar.topjava.repository.UserRepository;
 import ru.javawebinar.topjava.util.MealsUtil;
 
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,9 +23,9 @@ public class InMemoryUserRepository implements UserRepository {
     private AtomicInteger counter = new AtomicInteger(0);
 
     {
-        this.save(new User(counter.incrementAndGet(), "User", "user@gmail.com", "user", MealsUtil.DEFAULT_CALORIES_PER_DAY,
+        save(new User(null, "User", "user@gmail.com", "user", MealsUtil.DEFAULT_CALORIES_PER_DAY,
                 true, Collections.singleton(Role.USER)));
-        this.save(new User(counter.incrementAndGet(), "Admin", "admin@gmail.com", "admin", MealsUtil.DEFAULT_CALORIES_PER_DAY,
+        save(new User(null, "Admin", "admin@gmail.com", "admin", MealsUtil.DEFAULT_CALORIES_PER_DAY,
                 true, Collections.singleton(Role.ADMIN)));
     }
 
@@ -56,18 +54,17 @@ public class InMemoryUserRepository implements UserRepository {
     @Override
     public List<User> getAll() {
         log.info("getAll");
-        if (repository.size() > 0)
-            return repository.values().stream()
-                    .sorted(Comparator.comparing(AbstractNamedEntity::getName))
-                    .collect(Collectors.toList());
-        else
-            return Collections.emptyList();
+        return repository.values().stream()
+                .sorted((o1, o2) -> o1.getName().equals(o2.getName()) ? o1.getEmail().compareTo(o2.getEmail()) : o1.getName().compareTo(o2.getName()))
+                .collect(Collectors.toList());
     }
 
     @Override
     public User getByEmail(String email) {
         log.info("getByEmail {}", email);
         return repository.values().stream()
-                .filter(e -> e.getEmail() == email).collect(Collectors.toList()).get(0);
+                .filter(getByEmail(email)::equals)
+                .findFirst()
+                .get();
     }
 }
