@@ -47,7 +47,7 @@ public class MealServiceTest extends TestCase {
         assertThrows(NotFoundException.class, () -> service.get(NOT_FOUND,USER_ID));
     }
     @Test
-    public void testGetNotHisMeal() throws Exception {
+    public void testGetNotOwnMeal() throws Exception {
         assertThrows(NotFoundException.class, () -> service.get(MEAL_ID,ADMIN_ID));
     }
     @Test
@@ -77,6 +77,11 @@ public class MealServiceTest extends TestCase {
         Meal updated = getUpdated();
         service.update(updated, USER_ID);
         assertMatch(service.get(MEAL_ID, USER_ID), updated);
+    }
+    @Test
+    public void testUpdateNotOwnMeal() {
+        Meal updated = getUpdated();
+        assertThrows(NotFoundException.class, () -> service.update(updated, ADMIN_ID));
     }
 
     @Test
