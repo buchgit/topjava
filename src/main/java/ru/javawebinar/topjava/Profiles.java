@@ -1,6 +1,12 @@
 package ru.javawebinar.topjava;
 
+import org.springframework.beans.factory.annotation.Value;
+
 public class Profiles {
+
+    @Value("${spring.profiles.active:}")
+    private static String activeProfiles;
+
     public static final String
             JDBC = "jdbc",
             JPA = "jpa",
@@ -14,6 +20,7 @@ public class Profiles {
 
     //  Get DB profile depending of DB driver in classpath
     public static String getActiveDbProfile() {
+
         try {
             Class.forName("org.postgresql.Driver");
             return POSTGRES_DB;
