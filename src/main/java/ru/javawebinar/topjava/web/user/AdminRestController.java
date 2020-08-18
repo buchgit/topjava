@@ -2,12 +2,13 @@ package ru.javawebinar.topjava.web.user;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import ru.javawebinar.topjava.model.User;
+import ru.javawebinar.topjava.service.EmailValidator;
+import ru.javawebinar.topjava.util.exception.IllegalRequestDataException;
 
-import java.net.URI;
+import javax.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -15,6 +16,12 @@ import java.util.List;
 public class AdminRestController extends AbstractUserController {
 
     static final String REST_URL = "/rest/admin/users";
+
+    private final EmailValidator emailValidator;
+
+    public AdminRestController(EmailValidator emailValidator) {
+        this.emailValidator = emailValidator;
+    }
 
     @GetMapping
     public List<User> getAll() {
@@ -28,12 +35,12 @@ public class AdminRestController extends AbstractUserController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<User> createWithLocation(@RequestBody User user) {
-        User created = super.create(user);
-        URI uriOfNewResource = ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path(REST_URL + "/{id}")
-                .buildAndExpand(created.getId()).toUri();
-        return ResponseEntity.created(uriOfNewResource).body(created);
+    public void createWithLocation(@Valid @RequestBody User user, BindingResult result) {
+        if (result.hasErrors()) {
+            throw new IllegalRequestDataException("invalid request data");
+        }
+        emailValidator.checkEmail(user.getEmail());
+        super.create(user);
     }
 
     @Override
@@ -43,10 +50,13 @@ public class AdminRestController extends AbstractUserController {
         super.delete(id);
     }
 
-    @Override
     @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     @ResponseStatus(value = HttpStatus.NO_CONTENT)
-    public void update(@RequestBody User user, @PathVariable int id) {
+    public void update(@Valid @RequestBody User user, @PathVariable int id, BindingResult result) {
+        if (result.hasErrors()) {
+            throw new IllegalRequestDataException("invalid request data");
+        }
+        emailValidator.checkEmail(user.getEmail(), user.getId());
         super.update(user, id);
     }
 

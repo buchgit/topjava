@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.support.SessionStatus;
+import ru.javawebinar.topjava.service.EmailValidator;
 import ru.javawebinar.topjava.to.UserTo;
 import ru.javawebinar.topjava.web.SecurityUtil;
 
@@ -15,6 +16,12 @@ import javax.validation.Valid;
 @Controller
 @RequestMapping("/profile")
 public class ProfileUIController extends AbstractUserController {
+
+    private final EmailValidator emailValidator;
+
+    public ProfileUIController(EmailValidator emailValidator) {
+        this.emailValidator = emailValidator;
+    }
 
     @GetMapping
     public String profile() {
@@ -46,6 +53,7 @@ public class ProfileUIController extends AbstractUserController {
             model.addAttribute("register", true);
             return "profile";
         } else {
+            emailValidator.checkEmail(userTo.getEmail());
             super.create(userTo);
             status.setComplete();
             return "redirect:/login?message=app.registered&username=" + userTo.getEmail();
